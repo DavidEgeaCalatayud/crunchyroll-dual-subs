@@ -1,4 +1,16 @@
 import { translate as translateLocally } from "../shared/localTranslator.js";
+import {
+  normalizeSubtitleText,
+  parseSubtitleContent
+} from "../shared/subtitleParser.js";
+import { getEntryAtTime } from "../shared/subtitleSync.js";
+import {
+  attachOverlay,
+  createOverlay as createOverlayElement,
+  getOverlayElement,
+  resetOverlayTextCache,
+  setOverlayText as setOverlayElementText
+} from "./overlay.js";
 
 (() => {
   "use strict";
@@ -14,11 +26,6 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
   const LOCAL_TRANSLATION_LANGUAGE = "es-ES";
 
   const state = {
-    overlay: null,
-    originalLine: null,
-    secondaryLine: null,
-    overlayHost: null,
-
     video: null,
 
     settings: { ...DEFAULT_SETTINGS },
@@ -52,13 +59,7 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
   }
 
   function normalizeText(value) {
-    return String(value || "")
-      .replace(/\{.*?\}/g, "")
-      .replace(/\\N/g, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\r/g, "")
-      .replace(/[ \t]+/g, " ")
-      .trim();
+    return normalizeSubtitleText(value);
   }
 
   function getOverlayHost() {
@@ -79,50 +80,12 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
   }
 
   function createOverlay() {
-    const existing = document.querySelector("#crds-overlay");
-
-    if (existing) {
-      state.overlay = existing;
-      state.originalLine = existing.querySelector(".crds-line-original");
-      state.secondaryLine = existing.querySelector(".crds-line-secondary");
-      state.overlayHost = existing.parentElement;
-      return;
-    }
-
-    const overlay = document.createElement("div");
-    overlay.id = "crds-overlay";
-    overlay.classList.add("crds-hidden");
-
-    const originalLine = document.createElement("div");
-    originalLine.className = "crds-line crds-line-original";
-
-    const secondaryLine = document.createElement("div");
-    secondaryLine.className = "crds-line crds-line-secondary";
-
-    overlay.appendChild(originalLine);
-    overlay.appendChild(secondaryLine);
-
-    state.overlay = overlay;
-    state.originalLine = originalLine;
-    state.secondaryLine = secondaryLine;
-
-    ensureOverlayAttached();
-
+    createOverlayElement(getOverlayHost());
     log("Overlay creado");
   }
 
   function ensureOverlayAttached() {
-    if (!state.overlay) {
-      createOverlay();
-      return;
-    }
-
-    const host = getOverlayHost();
-
-    if (state.overlay.parentElement !== host) {
-      host.appendChild(state.overlay);
-      state.overlayHost = host;
-    }
+    attachOverlay(getOverlayHost());
   }
 
   function translate(text) {
@@ -132,12 +95,18 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
     return normalizeText(translateLocally(cleanText)) || cleanText;
   }
 
-  function setOverlayText(originalText, secondaryText = "") {
+  function setOverlayText(originalText, secondaryText = "", options = {}) {
     const cleanOriginal = normalizeText(originalText);
     let cleanSecondary = normalizeText(secondaryText);
 
     if (!cleanSecondary && cleanOriginal) {
       cleanSecondary = normalizeText(translate(cleanOriginal));
+    }
+
+    if (options.force) {
+      state.lastOriginalText = "";
+      state.lastSecondaryText = "";
+      resetOverlayTextCache();
     }
 
     if (
@@ -149,20 +118,7 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
 
     state.lastOriginalText = cleanOriginal;
     state.lastSecondaryText = cleanSecondary;
-
-    if (state.originalLine) {
-      state.originalLine.textContent = cleanOriginal;
-    }
-
-    if (state.secondaryLine) {
-      state.secondaryLine.textContent = cleanSecondary;
-    }
-
-    const hasText = Boolean(cleanOriginal || cleanSecondary);
-
-    if (state.overlay) {
-      state.overlay.classList.toggle("crds-hidden", !hasText);
-    }
+    setOverlayElementText(cleanOriginal, cleanSecondary);
   }
 
   function disableVideoTextTracks() {
@@ -202,7 +158,8 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
   }
 
   function looksLikeNativeSubtitleElement(element, currentText) {
-    if (!element || element === state.overlay || state.overlay?.contains(element)) {
+    const overlay = getOverlayElement();
+    if (!element || element === overlay || overlay?.contains(element)) {
       return false;
     }
 
@@ -285,7 +242,7 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
       const walker = document.createTreeWalker(candidateRoot, NodeFilter.SHOW_TEXT, {
         acceptNode(node) {
           const parent = node.parentElement;
-          if (!parent || state.overlay?.contains(parent)) {
+          if (!parent || getOverlayElement()?.contains(parent)) {
             return NodeFilter.FILTER_REJECT;
           }
 
@@ -435,139 +392,6 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
     });
   }
 
-  function parseVtt(content) {
-    const text = String(content || "").replace(/\r/g, "");
-    const blocks = text.split(/\n\n+/);
-    const entries = [];
-
-    for (const block of blocks) {
-      const lines = block
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-
-      if (!lines.length) continue;
-      if (lines[0] === "WEBVTT") continue;
-
-      let timeLineIndex = -1;
-
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("-->")) {
-          timeLineIndex = i;
-          break;
-        }
-      }
-
-      if (timeLineIndex === -1) continue;
-
-      const timeLine = lines[timeLineIndex];
-      const textLines = lines.slice(timeLineIndex + 1);
-
-      if (!textLines.length) continue;
-
-      const parts = timeLine.split("-->");
-      if (parts.length !== 2) continue;
-
-      const start = parts[0].trim().split(" ")[0];
-      const end = parts[1].trim().split(" ")[0];
-
-      const subtitleText = normalizeText(textLines.join("\n"));
-      if (!subtitleText) continue;
-
-      entries.push({
-        start: timeToSeconds(start),
-        end: timeToSeconds(end),
-        text: subtitleText
-      });
-    }
-
-    return entries;
-  }
-
-  function parseSubtitleContent(content, url = "") {
-    const text = String(content || "");
-    const lowerUrl = String(url || "").toLowerCase();
-
-    if (lowerUrl.includes(".vtt") || text.includes("WEBVTT")) {
-      return parseVtt(text);
-    }
-
-    if (text.includes("Dialogue:")) {
-      return parseAss(text);
-    }
-
-    return [];
-  }
-
-  function timeToSeconds(value) {
-    const text = String(value || "").trim();
-
-    let match = /^(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d{1,2}))?$/.exec(text);
-    if (match) {
-      const hours = Number(match[1]);
-      const minutes = Number(match[2]);
-      const seconds = Number(match[3]);
-      const centiseconds = Number(match[4] || 0);
-
-      return hours * 3600 + minutes * 60 + seconds + centiseconds / 100;
-    }
-
-    match = /^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?$/.exec(text);
-    if (match) {
-      const hours = Number(match[1]);
-      const minutes = Number(match[2]);
-      const seconds = Number(match[3]);
-      const milliseconds = Number(match[4] || 0);
-
-      return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
-    }
-
-    return 0;
-  }
-
-  function parseAss(content) {
-    const lines = String(content || "").split("\n");
-    const entries = [];
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-
-      if (!line.startsWith("Dialogue:")) continue;
-
-      const payload = line.slice("Dialogue:".length).trim();
-      const parts = payload.split(",");
-
-      if (parts.length < 10) continue;
-
-      const start = parts[1]?.trim();
-      const end = parts[2]?.trim();
-      const text = parts.slice(9).join(",").trim();
-
-      const cleanText = normalizeText(text);
-      if (!cleanText) continue;
-
-      entries.push({
-        start: timeToSeconds(start),
-        end: timeToSeconds(end),
-        text: cleanText
-      });
-    }
-
-    return entries;
-  }
-
-  function getEntryAtTime(entries, timeSeconds) {
-    if (!Array.isArray(entries) || entries.length === 0) return null;
-
-    for (const entry of entries) {
-      if (timeSeconds >= entry.start && timeSeconds <= entry.end) {
-        return entry;
-      }
-    }
-
-    return null;
-  }
-
   function stopSubtitleSync() {
     if (state.syncTimer) {
       clearInterval(state.syncTimer);
@@ -708,7 +532,7 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
     state.lastSecondaryText = "";
 
     restorePreviouslyHiddenNativeElements();
-    setOverlayText("", "");
+    setOverlayText("", "", { force: true });
     stopSubtitleSync();
   }
 
@@ -728,7 +552,7 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
     state.lastSecondaryText = "";
 
     restorePreviouslyHiddenNativeElements();
-    setOverlayText("", "");
+    setOverlayText("", "", { force: true });
     stopSubtitleSync();
   }
 
@@ -853,7 +677,7 @@ import { translate as translateLocally } from "../shared/localTranslator.js";
         state.secondaryLanguageLoaded = null;
       }
 
-      setOverlayText("", "");
+      setOverlayText("", "", { force: true });
       stopSubtitleSync();
     });
   }

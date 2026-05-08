@@ -30,7 +30,7 @@ src/background/          Service worker for subtitle request capture/fetching
 src/content/             Content script and subtitle overlay styles
 src/data/                Local dictionaries, glossary, and translation memory
 src/popup/               Extension popup for language selection
-src/shared/              Local translator implementation
+src/shared/              Shared subtitle parsing, URL detection, sync, and translation logic
 tools/                   Dictionary maintenance scripts
 ```
 
@@ -56,6 +56,12 @@ For development with rebuilds:
 npm run watch
 ```
 
+Run the test suite:
+
+```bash
+npm test
+```
+
 ## Loading in Chrome
 
 1. Open `chrome://extensions`.
@@ -75,4 +81,4 @@ For broader grammar improvements, extend the sentence-pattern layer in `src/shar
 
 ## Disclaimer
 
-This is an unofficial educational project and is not affiliated with Crunchyroll. Use it for personal learning and development portfolio purposes.
+This is an unofficial educational project and is not affiliated with Crunchyroll. Use it for personal learning.

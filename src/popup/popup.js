@@ -1,23 +1,26 @@
-const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS = {
   primaryLanguage: "en-US",
   secondaryLanguage: "es-ES"
 };
 
-async function getSettings() {
+export async function getSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
-      resolve(result);
+      resolve({
+        primaryLanguage: result.primaryLanguage || DEFAULT_SETTINGS.primaryLanguage,
+        secondaryLanguage: result.secondaryLanguage || DEFAULT_SETTINGS.secondaryLanguage
+      });
     });
   });
 }
 
-async function saveSettings(settings) {
+export async function saveSettings(settings) {
   return new Promise((resolve) => {
     chrome.storage.local.set(settings, () => resolve());
   });
 }
 
-async function init() {
+export async function init() {
   const primarySelect = document.getElementById("primaryLanguage");
   const secondarySelect = document.getElementById("secondaryLanguage");
   const saveButton = document.getElementById("saveButton");
@@ -43,4 +46,6 @@ async function init() {
   });
 }
 
-init();
+if (typeof document !== "undefined") {
+  init();
+}
