@@ -1,0 +1,21 @@
+{
+  "name": "crunchyroll-dual-subs",
+  "version": "0.1.0",
+  "description": "Chrome extension that overlays English Crunchyroll subtitles with local Spanish study translations.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch"
+  },
+  "keywords": [
+    "chrome-extension",
+    "crunchyroll",
+    "subtitles",
+    "language-learning",
+    "local-translation"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

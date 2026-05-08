@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Crunchyroll Dual Subs",
+  "version": "0.1.0",
+  "description": "Doble subtítulo para aprendizaje de inglés en Crunchyroll",
+  "permissions": ["storage", "webRequest"],
+  "host_permissions": [
+    "https://www.crunchyroll.com/*",
+    "https://*.crunchyroll.com/*",
+    "https://static.crunchyroll.com/*",
+    "https://*.crunchyrollcdn.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Dual Subs"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.crunchyroll.com/*",
+        "https://static.crunchyroll.com/vilos-v2/web/vilos/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dual Subs</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="popup">
+    <h1>Dual Subs</h1>
+
+    <label for="primaryLanguage">Primary line</label>
+    <select id="primaryLanguage">
+      <option value="en-US">English (US)</option>
+      <option value="es-ES">Spanish (ES)</option>
+      <option value="fr-FR">French (FR)</option>
+      <option value="pt-BR">Portuguese (BR)</option>
+    </select>
+
+    <label for="secondaryLanguage">Secondary line</label>
+    <select id="secondaryLanguage">
+      <option value="off">Off</option>
+      <option value="en-US">English (US)</option>
+      <option value="es-ES">Spanish (ES)</option>
+      <option value="fr-FR">French (FR)</option>
+      <option value="pt-BR">Portuguese (BR)</option>
+    </select>
+
+    <button id="saveButton">Save</button>
+    <div id="status"></div>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

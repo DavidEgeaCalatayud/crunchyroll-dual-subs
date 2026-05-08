@@ -1,0 +1,17 @@
+node_modules/
+dist/
+
+# Local build artifacts and generated dictionaries
+data_source/
+*.sqlite
+*.sqlite3
+public/icons/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
