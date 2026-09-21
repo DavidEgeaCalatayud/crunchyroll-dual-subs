@@ -2,8 +2,7 @@
 
 ![Chrome Extension](https://img.shields.io/badge/platform-Chrome-4285F4)
 ![JavaScript](https://img.shields.io/badge/language-JavaScript-F7DF1E)
-![Build](https://img.shields.io/badge/build-esbuild-blue)
-![Tests](https://img.shields.io/badge/tests-vitest-green)
+[![CI](https://github.com/DavidEgeaCalatayud/crunchyroll-dual-subs/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidEgeaCalatayud/crunchyroll-dual-subs/actions/workflows/ci.yml)
 ![Status](https://img.shields.io/badge/status-educational_project-orange)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
